@@ -1,6 +1,6 @@
 {
-  "name": "@dylankenneally/react-native-ssh-sftp",
-  "version": "1.5.20",
+  "name": "@speedshield/react-native-ssh-sftp",
+  "version": "1.5.22",
   "description": "SSH and SFTP client library for React Native",
   "main": "lib/sshclient.js",
   "scripts": {
@@ -17,17 +17,22 @@
     "ssh",
     "sftp"
   ],
-  "homepage": "https://github.com/dylankenneally/react-native-ssh-sftp#readme",
+  "homepage": "https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp#readme",
   "bugs": {
-    "url": "https://github.com/dylankenneally/react-native-ssh-sftp/issues",
-    "email": "project@hostname.com"
+    "url": "https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/issues",
+    "email": "pnguyen@speedshield.com"
   },
   "author": {
-    "name": "Dylan Kenneally",
-    "email": "github@dylankenneally.com",
-    "url": "https://github.com/dylankenneally/react-native-ssh-sftp"
+    "name": "Phung Nguyen",
+    "email": "pnguyen@speedshield.com",
+    "url": "https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp"
   },
   "contributors": [
+    {
+      "name": "Dylan Kenneally",
+      "email": "github@dylankenneally.com",
+      "url": "https://github.com/dylankenneally/react-native-ssh-sftp"
+    },
     {
       "name": "Emmanuel Natividad",
       "url": "https://github.com/enatividad/react-native-ssh-sftp"
