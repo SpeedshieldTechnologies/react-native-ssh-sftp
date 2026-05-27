@@ -1,6 +1,6 @@
 {
   "name": "@speedshield/react-native-ssh-sftp",
-  "version": "1.5.25",
+  "version": "1.6.0",
   "description": "SSH and SFTP client library for React Native",
   "main": "lib/sshclient.js",
   "scripts": {
