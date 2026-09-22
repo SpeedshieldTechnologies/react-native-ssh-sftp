@@ -50,7 +50,10 @@ No additional steps are needed for Android.
 
 ### Linking
 
-This project has been updated to use React Native v73 (the latest at the time of writing, Jan 2024) - which means that manual linking is not required.
+This library autolinks via the [Expo Modules API](https://docs.expo.dev/modules/overview/), so manual linking is not required in either setup:
+
+- **Expo-managed apps** pick it up automatically.
+- **Bare React Native apps** (RN >= 0.74) need the `expo` package installed as an optional dependency purely for its autolinking infrastructure - see [Installing Expo modules in an existing React Native project](https://docs.expo.dev/bare/installing-expo-modules/). You don't need any other part of the Expo SDK.
 
 ## Usage
 
