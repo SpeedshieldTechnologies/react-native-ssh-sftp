@@ -30,10 +30,12 @@ Versioning and publishing go through [Changesets](https://github.com/changesets/
 ```bash
 npm run changeset         # add a changeset describing your change's semver bump (interactive)
 npm run version-packages  # apply pending changesets: bumps package.json, writes CHANGELOG.md
-npm run release            # compile + `changeset publish` (publishes to npm)
+npm run release            # compile + `changeset publish` (manual/local publish only — CI publishes via the sub-actions below, not this script)
 ```
 
-Every PR that should trigger a release needs a changeset file (`.changeset/*.md`); the `.github/workflows/release.yml` workflow (`changesets/action`) picks these up on push to `master`, opens/updates a "Version Packages" PR, and publishes when that PR is merged. Don't hand-edit the `version` field in `package.json` — let `changeset version` own it.
+Every PR that should trigger a release needs a changeset file (`.changeset/*.md`). `.github/workflows/release.yml` picks these up on push to `master` and runs as 4 jobs (`select-mode` → `version` or `pack` → `publish`), split specifically so `id-token: write` — needed for npm Trusted Publishing (OIDC, no `NPM_TOKEN`) — is only ever granted to the final `publish` job, per [Changesets' own guidance](https://changesets.dev/guide/automating#trusted-publishing). `select-mode` decides whether there's a pending changeset (→ open/update the "Version Packages" PR) or nothing pending but a publishable version (→ build, pack, and publish, gated behind manual approval on the `production` GitHub Environment). Don't hand-edit the `version` field in `package.json` — let `changeset version` own it.
+
+npm's Trusted Publisher config for this package (npmjs.com → package settings → Trusted Publisher) must have the exact workflow path registered: `SpeedshieldTechnologies/react-native-ssh-sftp`, workflow `release.yml`. If that file gets renamed or moved, the publish job's OIDC token will be rejected until the Trusted Publisher config is updated to match.
 
 There is intentionally no pre-commit git hook (husky was removed) — a local hook running arbitrary shell also runs against commits `changesets/action` makes unattended in CI, which is exactly what broke the release pipeline once. Compile/lint checks happen in CI (`compile.yml`) instead.
 
