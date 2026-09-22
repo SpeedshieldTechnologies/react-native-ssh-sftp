@@ -4,8 +4,7 @@
 # Project
 /node_modules
 /lib
-/react-native-ssh-sftp*.tgz
-/dylankenneally-react-native-ssh-sftp*.tgz
+/speedshield-react-native-ssh-sftp*.tgz
 
 # Xcode
 build/
