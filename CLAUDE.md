@@ -19,17 +19,23 @@ npm run lint:build    # eslint with NODE_ENV=production, --max-warnings 20 (used
 npm run build         # compile + npm pack
 ```
 
-There is no test suite (the pre-commit hook has a commented-out `npm test` with a note that current tests "prove nothing"). There is no single-test command.
+There is no test suite. There is no single-test command.
 
 To work on the native Android/iOS code directly, you need a consumer React Native app with this package linked — this repo does not contain an example/host app itself (see README's link to a separate example app repo).
 
-## Pre-commit behavior (Husky)
+## Releasing (Changesets)
 
-`.husky/pre-commit` runs automatically on every commit with local changes and will:
-1. Run `npm run compile` and abort the commit if it fails.
-2. Auto-bump the patch version in `package.json`/`package-lock.json` via `npm version patch --no-git-tag-version` and `git add` those files.
+Versioning and publishing go through [Changesets](https://github.com/changesets/changesets), not manual `npm version`:
 
-This means the version number bumps on essentially every commit that touches tracked files — don't manually bump version numbers as part of a change.
+```bash
+npm run changeset         # add a changeset describing your change's semver bump (interactive)
+npm run version-packages  # apply pending changesets: bumps package.json, writes CHANGELOG.md
+npm run release            # compile + `changeset publish` (publishes to npm)
+```
+
+Every PR that should trigger a release needs a changeset file (`.changeset/*.md`); the `.github/workflows/release.yml` workflow (`changesets/action`) picks these up on push to `master`, opens/updates a "Version Packages" PR, and publishes when that PR is merged. Don't hand-edit the `version` field in `package.json` — let `changeset version` own it.
+
+There is intentionally no pre-commit git hook (husky was removed) — a local hook running arbitrary shell also runs against commits `changesets/action` makes unattended in CI, which is exactly what broke the release pipeline once. Compile/lint checks happen in CI (`compile.yml`) instead.
 
 ## Architecture
 
@@ -37,7 +43,7 @@ This means the version number bumps on essentially every commit that touches tra
 
 `src/sshclient.ts` is the only JS/TS entry point (compiles to `lib/sshclient.js`, the package's `main`). It defines the public `SSHClient` class and wraps the native module (`NativeModules.RNSSHClient`) with Promise-returning methods, each with an optional Node-style `(error, response)` callback for backwards compatibility. All actual SSH/SFTP work happens in native code:
 
-- **Android**: `android/src/main/java/me/keeex/rnssh/RNSshClientModule.java` — a single `ReactContextBaseJavaModule` exposing `@ReactMethod`s that mirror `sshclient.ts` one-to-one (`connectToHostByPassword`, `execute`, `startShell`, `sftpLs`, etc). Each method spawns its own `new Thread(...)` to do blocking JSch I/O off the RN bridge thread.
+- **Android**: `android/src/main/java/com/speedshield/rnssh/RNSSHClientModule.java` — a single `ReactContextBaseJavaModule` exposing `@ReactMethod`s that mirror `sshclient.ts` one-to-one (`connectToHostByPassword`, `execute`, `startShell`, `sftpLs`, etc). Each method spawns its own `new Thread(...)` to do blocking JSch I/O off the RN bridge thread.
 - **iOS**: `ios/RNSSHClient.m`/`.h` (the `RCTEventEmitter` bridge module) + `ios/SSHClient.m`/`.h` (a plain Obj-C wrapper around NMSSH). `RNSSHClient` runs on its own serial `dispatch_queue_t`.
 
 When adding or changing a method, it must be updated in **three** places to stay working end-to-end: `src/sshclient.ts`, the Android module, and the iOS module. The method name and argument order are expected to line up across all three (Android and iOS take slightly different argument shapes in places — iOS takes a single `connectToHost` with a `passwordOrKey` union, Android splits this into `connectToHostByPassword`/`connectToHostByKey`).
@@ -53,10 +59,6 @@ Long-running/streaming operations use RN's event emitter rather than callbacks:
 - `DownloadProgress` / `UploadProgress` — SFTP transfer progress (percent, emitted in 5% increments on Android)
 
 On iOS this goes through `NativeEventEmitter`; on Android through `DeviceEventEmitter` (see the `Platform.OS` branch in `sshclient.ts`'s `registerNativeListener`). Every emitted event includes the originating client's `key` and an event `name`; `SSHClient.handleEvent` filters events by both before invoking the registered handler, since all instances share the same global event channel.
-
-### Known inconsistency: Android package name
-
-The Android native module's Java package is declared as `me.dylankenneally.rnssh` (in `RNSshClientModule.java`, `RNSshClientPackage.java`, and `AndroidManifest.xml`), but the files live under the directory path `android/src/main/java/me/keeex/rnssh/`. This is a leftover from the fork chain (see README credits) — the directory and declared package don't match. Don't "fix" this without checking downstream consumer apps aren't relying on the current package path.
 
 ### SFTP directory listing serialization (Android)
 
