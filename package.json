@@ -10,7 +10,10 @@
     "precompile": "npm run lint:build",
     "compile": "npx tsc",
     "lint": "eslint .",
-    "lint:build": "cross-env NODE_ENV=production npm run lint -- --max-warnings 20"
+    "lint:build": "cross-env NODE_ENV=production npm run lint -- --max-warnings 20",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "npm run compile && changeset publish"
   },
   "keywords": [
     "react-native",
@@ -43,7 +46,7 @@
       "url": "https://github.com/KeeeX/react-native-ssh-sftp"
     },
     {
-      "name": "Bishoy Mikhae",
+      "name": "Bishoy Mikhael",
       "url": "https://github.com/MrBmikhael/react-native-ssh-sftp"
     },
     {
@@ -67,19 +70,17 @@
     "RNSSHClient.podspec"
   ],
   "devDependencies": {
+    "@changesets/changelog-github": "^1.0.1",
+    "@changesets/cli": "^3.0.3",
     "@typescript-eslint/eslint-plugin": "^7.13.1",
     "@typescript-eslint/parser": "^7.13.1",
     "cross-env": "^7.0.3",
+    "eslint": "^8.57.0",
     "husky": "^9.0.11",
     "typescript": "^5.4.5"
   },
   "engines": {
     "npm": ">=9.5.0 <11.0.0",
     "node": ">=18.16.0 <=24"
-  },
-  "dependencies": {
-    "-": "^0.0.1",
-    "D": "^1.0.0",
-    "eslint": "^8.57.0"
   }
 }

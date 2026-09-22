@@ -77,7 +77,7 @@
 			dependencies = (
 			);
 			name = RNSSHClient;
-			productName = RCTDataManager;
+			productName = RNSSHClient;
 			productReference = 134814201AA4EA6300B7C361 /* libRNSSHClient.a */;
 			productType = "com.apple.product-type.library.static";
 		};
@@ -88,7 +88,7 @@
 			isa = PBXProject;
 			attributes = {
 				LastUpgradeCheck = 0830;
-				ORGANIZATIONNAME = Facebook;
+				ORGANIZATIONNAME = "Speedshield Technologies";
 				TargetAttributes = {
 					58B511DA1A9E6C8500147676 = {
 						CreatedOnToolsVersion = 6.1.1;
