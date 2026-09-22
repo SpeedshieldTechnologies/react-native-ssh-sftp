@@ -1,4 +1,4 @@
-package me.dylankenneally.rnssh;
+package com.speedshield.rnssh;
 
 import android.os.Environment;
 import android.util.Log;
@@ -53,7 +53,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.ByteArrayOutputStream;
 
-public class RNSshClientModule extends ReactContextBaseJavaModule {
+public class RNSSHClientModule extends ReactContextBaseJavaModule {
   private class SSHClient {
     Session _session;
     String _key;
@@ -71,7 +71,7 @@ public class RNSshClientModule extends ReactContextBaseJavaModule {
 
   Map<String, SSHClient> clientPool = new HashMap<>();
 
-  public RNSshClientModule(ReactApplicationContext reactContext) {
+  public RNSSHClientModule(ReactApplicationContext reactContext) {
     super(reactContext);
     this.reactContext = reactContext;
   }
