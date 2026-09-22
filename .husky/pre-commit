@@ -36,10 +36,4 @@ if hasChanges; then
   #   log "Testing failed, fix the errors before committing"
   #   exit $retVal
   # fi
-
-  # Update (patch) the package version numbers if changes are detected
-  log "Patching package application version"
-  npm version patch --no-git-tag-version
-  git add package.json
-  git add package-lock.json
 fi
