@@ -12,7 +12,10 @@ Pod::Spec.new do |s|
   s.source           = { :git => package['repository']['url'], :tag => s.version }
   s.source_files     = 'ios/*.swift'
   s.requires_arc     = true
-  s.platforms        = { :ios => "17.0" }
+  # 18.0 (bumped from 17.0): the Citadel/NIOTransportServices bridge in RNSSHClientDeps needs
+  # SE-0417 task executor preference (withTaskExecutorPreference), which requires the iOS 18
+  # Concurrency runtime - see the comment on EventLoopTaskExecutor in RNSSHClientDeps.swift.
+  s.platforms        = { :ios => "18.0" }
   s.swift_version    = '5.9'
 
   # Built at publish time by scripts/build-ios-xcframework.sh, wrapping Citadel - see
