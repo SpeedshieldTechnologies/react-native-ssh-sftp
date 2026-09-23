@@ -57,6 +57,7 @@
   "license": "MIT",
   "peerDependencies": {
     "expo": "*",
+    "expo-modules-core": "*",
     "react-native": ">=0.74.0"
   },
   "peerDependenciesMeta": {
@@ -70,7 +71,8 @@
   },
   "files": [
     "android/",
-    "ios/",
+    "ios/RNSSHClientDeps.xcframework/",
+    "ios/RNSSHClientModule.swift",
     "lib/",
     "RNSSHClient.podspec",
     "expo-module.config.json"

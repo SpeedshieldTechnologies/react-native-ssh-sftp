@@ -45,7 +45,14 @@ archive_and_assemble() {
     -quiet)
 
   local prod="$derived_data/Build/Products/$products_subdir"
-  local intermediates="$derived_data/Build/Intermediates.noindex/$XCFRAMEWORK_NAME.build/$products_subdir/$XCFRAMEWORK_NAME.build/Objects-normal"
+  # Xcode's exact intermediate directory naming for a target (e.g. a "-t" suffix under Xcode 27)
+  # isn't a stable contract across versions, so locate it by pattern rather than hardcoding it.
+  local intermediates
+  intermediates="$(find "$derived_data/Build/Intermediates.noindex" -type d -path "*/$products_subdir/$XCFRAMEWORK_NAME*.build/Objects-normal" | head -1)"
+  if [ -z "$intermediates" ]; then
+    echo "error: could not locate the $XCFRAMEWORK_NAME intermediates directory under $derived_data/Build/Intermediates.noindex" >&2
+    exit 1
+  fi
   local checkouts="$derived_data/SourcePackages/checkouts"
 
   mkdir -p "$slice_dir/Modules"

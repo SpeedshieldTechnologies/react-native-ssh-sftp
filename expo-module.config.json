@@ -1,5 +1,9 @@
 {
   "platforms": ["apple", "android"],
+  "apple": {
+    "podspecPath": "RNSSHClient.podspec",
+    "modules": ["RNSSHClientModule"]
+  },
   "android": {
     "modules": ["com.speedshield.rnssh.RNSSHClientModule"]
   }
