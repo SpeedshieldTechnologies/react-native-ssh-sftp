@@ -10,12 +10,31 @@
 # Runs on every PR (not just ones targeting master) since this repo's migration PRs are stacked
 # on each other rather than on master directly - unlike compile.yml, scoping this to master only
 # would mean it never runs on any of them.
+#
+# Path-filtered to only the things that actually affect native builds - a scratch Expo app build
+# on both platforms is slow, and there's no reason to pay that cost for a docs- or JS-only PR.
 name: Native build gates
 
 on:
   pull_request:
+    paths:
+      - 'android/**'
+      - 'ios/**'
+      - 'scripts/build-ios-xcframework.sh'
+      - 'RNSSHClient.podspec'
+      - 'expo-module.config.json'
+      - 'package.json'
+      - '.github/workflows/native-build.yml'
   push:
     branches: [ master ]
+    paths:
+      - 'android/**'
+      - 'ios/**'
+      - 'scripts/build-ios-xcframework.sh'
+      - 'RNSSHClient.podspec'
+      - 'expo-module.config.json'
+      - 'package.json'
+      - '.github/workflows/native-build.yml'
 
 concurrency:
   group: native-build-${{ github.workflow }}-${{ github.ref }}
