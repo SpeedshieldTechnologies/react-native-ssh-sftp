@@ -2,7 +2,7 @@
 
 SSH and SFTP client library for React Native on iOS and Android.
 
-[![Compile package](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/compile.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/compile.yml) [![Publish package to npmjs.com](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/publish.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/publish.yml)
+[![Compile package](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/compile.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/compile.yml) [![Native build gates](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/native-build.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/native-build.yml) [![Release](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/release.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/release.yml)
 
 ## Installation
 
@@ -12,16 +12,9 @@ npm install @speedshield/react-native-ssh-sftp
 
 ### iOS
 
-Update your `Podfile` to use the [aanah0's fork](https://github.com/aanah0/NMSSH) of [NMSSH](https://github.com/NMSSH/NMSSH). Note that we use the forked version to give us a required later version of libssh. Your `Podfile` is located in your React Native project at `./ios/Podfile`.
+No `Podfile` edits are needed. The iOS side is backed by [Citadel](https://github.com/orlandos-nl/Citadel), a pure-Swift SSH/SFTP library, vendored as a precompiled XCFramework and wired up through `RNSSHClient.podspec`, which CocoaPods and Expo's autolinking resolve automatically like any other autolinked native dependency.
 
-```ruby
-target '[your project's name]' do
-  pod 'NMSSH', :git => 'https://github.com/aanah0/NMSSH.git' # <-- add this line
-  # ... rest of your target details ...
-end
-```
-
-And then run `pod install` in your `./ios` directory.
+Just run `pod install` in your `./ios` directory after installing the package, same as you would for any other native module:
 
 ```bash
 cd ios
@@ -40,9 +33,8 @@ cd -
 > }
 > ```
 
-#### Having OpenSSL issues on iOS?
-
-If you are using [Flipper](https://fbflipper.com/) to debug your app, it will already have a copy of OpenSSL included. This can cause issues with the version of OpenSSL that NMSSH uses. You can disable flipper by removing/commenting out the `flipper_configuration => flipper_config,` line in your `Podfile`.
+> [!NOTE]
+> This library requires **iOS 18.0 or later**, needed for the Swift concurrency APIs ([SE-0417](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)) that the Citadel-based connection handling relies on. **tvOS is not supported.**
 
 ### Android
 
@@ -60,8 +52,8 @@ This library autolinks via the [Expo Modules API](https://docs.expo.dev/modules/
 All functions that run asynchronously where we have to wait for a result returns Promises that can reject if an error occurred.
 
 > [!NOTE]
-> On iOS, this package currently doesn't support the simulator, you will need to have your app running on a physical device. If you  would like to know more about this, see [this issue](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/issues/20). I'd welcome a PR to resolve this.
->
+> On the old NMSSH-based iOS implementation, the Simulator only worked with the **x86_64** (Intel/Rosetta) Simulator, not the native **arm64** Simulator on Apple Silicon Macs - NMSSH didn't ship a universal Simulator slice, so you'd need to explicitly select or force an x86_64 Simulator target (see [this issue](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/issues/20) for background). The Citadel-based rewrite's XCFramework does ship a genuine universal Simulator slice (`arm64` + `x86_64`, verified in its `Info.plist`), so this specific limitation shouldn't apply anymore - but that's link-level evidence, not a full functional test, so a physical device is still the safer choice until someone confirms a real SSH connection end-to-end on the Simulator.
+
 ### Create a client using password authentication
 
 ```javascript
@@ -78,7 +70,7 @@ SSHClient.connectWithPassword(
 ### Create a client using public key authentication
 
 ```javascript
-import SSHClient from 'react-native-ssh-sftp';
+import SSHClient from '@speedshield/react-native-ssh-sftp';
 
 SSHClient.connectWithKey(
   "10.0.0.10",
@@ -231,13 +223,15 @@ client.disconnectSFTP();
 
 ## Example app
 
-You can find a very simple example app for the usage of this library [here](https://github.com/dylankenneally/react-native-ssh-sftp-example).
+You can find a very simple example app for the usage of this library [here](https://github.com/dylankenneally/react-native-ssh-sftp-example) (predates the Expo Modules/Citadel rewrite, so treat it as a usage reference rather than a setup reference).
+
+[longphung/rnssh-test-app](https://github.com/longphung/rnssh-test-app) is a minimal manual test harness kept up to date against this library's current architecture, including the `file:` sibling-directory setup this repo's own native code needs for local development.
 
 ## Credits
 
 This package wraps the following libraries, which provide the actual SSH/SFTP functionality:
 
-- [NMSSH](https://github.com/aanah0/NMSSH) for iOS
+- [Citadel](https://github.com/orlandos-nl/Citadel) (MIT license) for iOS, by [Orlandos](https://github.com/orlandos-nl) - a pure-Swift SSH/SFTP library built on Apple's [swift-nio-ssh](https://github.com/apple/swift-nio-ssh) (Apache License 2.0)
 - [JSch](http://www.jcraft.com/jsch/) for Android ([from Matthias Wiedemann fork](https://github.com/mwiede/jsch))
 
 This package is a fork of Emmanuel Natividad's [react-native-ssh-sftp](https://github.com/enatividad/react-native-ssh-sftp) package. The fork chain from there is as follows:
