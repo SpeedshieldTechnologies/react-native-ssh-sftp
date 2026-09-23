@@ -57,6 +57,7 @@
   "license": "MIT",
   "peerDependencies": {
     "expo": "*",
+    "expo-modules-core": "*",
     "react-native": ">=0.74.0"
   },
   "peerDependenciesMeta": {

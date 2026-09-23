@@ -1,14 +1,9 @@
-import {
-  Platform,
-  NativeModules,
-  NativeEventEmitter,
-  DeviceEventEmitter,
-  EmitterSubscription
-} from 'react-native';
+import { requireNativeModule, EventSubscription } from 'expo-modules-core';
 
-const { RNSSHClient } = NativeModules;
-
-const RNSSHClientEmitter = new NativeEventEmitter(RNSSHClient);
+// Both platforms are Expo Modules: the native module is its own EventEmitter (addListener/
+// removeListener), so there's no separate NativeEventEmitter/DeviceEventEmitter to construct,
+// and no platform branch needed to pick between them.
+const RNSSHClient = requireNativeModule('RNSSHClient');
 
 const NATIVE_EVENT_SHELL = 'Shell';
 const NATIVE_EVENT_DOWNLOAD_PROGRESS = 'DownloadProgress';
@@ -211,7 +206,7 @@ export default class SSHClient {
 
   // "unique" key to identify callback from native library
   private _key: string;
-  private _listeners: Record<string, EmitterSubscription>;
+  private _listeners: Record<string, EventSubscription>;
   private _counters: { download: number; upload: number; };
   private _activeStream: { sftp: boolean; shell: boolean; };
   private _handlers: Record<string, EventHandler>;
@@ -286,8 +281,7 @@ export default class SSHClient {
    * @param eventName - The name of the event to listen for.
    */
   private registerNativeListener(eventName: string): void {
-    const listenerInterface = Platform.OS === 'ios' ? RNSSHClientEmitter : DeviceEventEmitter;
-    this._listeners[eventName] = listenerInterface.addListener(eventName, this.handleEvent.bind(this));
+    this._listeners[eventName] = RNSSHClient.addListener(eventName, this.handleEvent.bind(this));
   }
 
   /**
