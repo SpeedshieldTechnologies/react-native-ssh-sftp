@@ -21,36 +21,24 @@ interface NativeEvent {
 }
 
 /**
- * Bridges a native call to a single Promise, regardless of which native calling convention
- * the current platform's module uses. Android's Expo Module methods return a native Promise
- * directly; iOS's classic bridge methods still take a trailing (error, response) callback.
- * This lets call sites stay platform-agnostic while that split exists (Android was migrated
- * to Expo Modules first; iOS follows in a later phase).
+ * Bridges a native Promise-returning call to the library's own Promise-plus-optional-callback
+ * convention. Both platforms are Expo Modules now, so this is just a thin adapter, not a
+ * platform branch.
  */
 function callNative<T>(
-  androidCall: () => Promise<T>,
-  iosCall: (callback: CallbackFunction<T>) => void,
+  nativeCall: () => Promise<T>,
   callback?: CallbackFunction<T>
 ): Promise<T> {
   return new Promise((resolve, reject) => {
-    if (Platform.OS === 'android') {
-      androidCall()
-        .then((response: T) => {
-          if (callback) callback(null, response);
-          resolve(response);
-        })
-        .catch((error: CBError) => {
-          if (callback) callback(error);
-          reject(error);
-        });
-      return;
-    }
-
-    iosCall((error: CBError, response?: T) => {
-      if (callback) callback(error, response);
-      if (error) return reject(error);
-      resolve(response as T);
-    });
+    nativeCall()
+      .then((response: T) => {
+        if (callback) callback(null, response);
+        resolve(response);
+      })
+      .catch((error: CBError) => {
+        if (callback) callback(error);
+        reject(error);
+      });
   });
 }
 
@@ -321,20 +309,13 @@ export default class SSHClient {
    * @param callback - The callback function to be called after the connection attempt.
    */
   private connect(passwordOrKey: PasswordOrKey, callback: CallbackFunction<void>): void {
-    if (Platform.OS === 'android') {
-      const connectPromise = typeof passwordOrKey === 'string'
-        ? RNSSHClient.connectToHostByPassword(this.host, this.port, this.username, passwordOrKey, this._key)
-        : RNSSHClient.connectToHostByKey(this.host, this.port, this.username, passwordOrKey, this._key);
+    const connectPromise = typeof passwordOrKey === 'string'
+      ? RNSSHClient.connectToHostByPassword(this.host, this.port, this.username, passwordOrKey, this._key)
+      : RNSSHClient.connectToHostByKey(this.host, this.port, this.username, passwordOrKey, this._key);
 
-      connectPromise
-        .then(() => callback(null))
-        .catch((error: CBError) => callback(error));
-
-      return;
-    }
-
-    // iOS...
-    RNSSHClient.connectToHost(this.host, this.port, this.username, passwordOrKey, this._key, (error: CBError) => { callback(error); });
+    connectPromise
+      .then(() => callback(null))
+      .catch((error: CBError) => callback(error));
   }
 
   /**
@@ -346,7 +327,6 @@ export default class SSHClient {
   execute(command: string, callback?: CallbackFunction<string>): Promise<string> {
     return callNative<string>(
       () => RNSSHClient.execute(command, this._key),
-      (cb) => RNSSHClient.execute(command, this._key, cb),
       callback
     );
   }
@@ -365,7 +345,6 @@ export default class SSHClient {
     this.registerNativeListener(NATIVE_EVENT_SHELL);
     return callNative<string>(
       () => RNSSHClient.startShell(this._key, ptyType),
-      (cb) => RNSSHClient.startShell(this._key, ptyType, cb),
       callback
     ).then((response) => {
       this._activeStream.shell = true;
@@ -405,7 +384,6 @@ export default class SSHClient {
     return this.checkShell(callback)
       .then(() => callNative<string>(
         () => RNSSHClient.writeToShell(command, this._key),
-        (cb) => RNSSHClient.writeToShell(command, this._key, cb),
         callback
       ));
   }
@@ -434,7 +412,6 @@ export default class SSHClient {
 
     return callNative<void>(
       () => RNSSHClient.connectSFTP(this._key),
-      (cb) => RNSSHClient.connectSFTP(this._key, cb),
       callback
     ).then(() => {
       this._activeStream.sftp = true;
@@ -473,8 +450,7 @@ export default class SSHClient {
     return this.checkSFTP(callback)
       .then(() => new Promise((resolve, reject) => {
         callNative<string[]>(
-          () => RNSSHClient.sftpLs(path, this._key),
-          (cb) => RNSSHClient.sftpLs(path, this._key, cb)
+          () => RNSSHClient.sftpLs(path, this._key)
         ).then((_response) => {
           const response = _response ? _response.map(p => {
             // eslint-disable-next-line no-control-regex -- Control characters are removed from the response, because they can make JSON.parse fail
@@ -506,7 +482,6 @@ export default class SSHClient {
     return this.checkSFTP(callback)
       .then(() => callNative<void>(
         () => RNSSHClient.sftpRename(oldPath, newPath, this._key),
-        (cb) => RNSSHClient.sftpRename(oldPath, newPath, this._key, cb),
         callback
       ));
   }
@@ -521,7 +496,6 @@ export default class SSHClient {
     return this.checkSFTP(callback)
       .then(() => callNative<void>(
         () => RNSSHClient.sftpMkdir(path, this._key),
-        (cb) => RNSSHClient.sftpMkdir(path, this._key, cb),
         callback
       ));
   }
@@ -536,7 +510,6 @@ export default class SSHClient {
     return this.checkSFTP(callback)
       .then(() => callNative<void>(
         () => RNSSHClient.sftpRm(path, this._key),
-        (cb) => RNSSHClient.sftpRm(path, this._key, cb),
         callback
       ));
   }
@@ -551,15 +524,12 @@ export default class SSHClient {
     return this.checkSFTP(callback)
       .then(() => callNative<void>(
         () => RNSSHClient.sftpRmdir(path, this._key),
-        (cb) => RNSSHClient.sftpRmdir(path, this._key, cb),
         callback
       ));
   }
 
   /**
    * Changes the permissions of a file or directory on the remote server using SFTP.
-   *
-   * Only available on Android.
    * @param path - The path of the file or directory.
    * @param permissions - The new permissions to set.
    * @param callback - An optional callback function to handle the result or error.
@@ -569,7 +539,6 @@ export default class SSHClient {
     return this.checkSFTP(callback)
       .then(() => callNative<void>(
         () => RNSSHClient.sftpChmod(path, permissions, this._key),
-        (cb) => RNSSHClient.sftpChmod(path, permissions, this._key, cb),
         callback
       ));
   }
@@ -587,7 +556,6 @@ export default class SSHClient {
         ++this._counters.upload;
         return callNative<void>(
           () => RNSSHClient.sftpUpload(localFilePath, remoteFilePath, this._key),
-          (cb) => RNSSHClient.sftpUpload(localFilePath, remoteFilePath, this._key, cb),
           callback
         ).finally(() => { --this._counters.upload; });
       });
@@ -615,7 +583,6 @@ export default class SSHClient {
         ++this._counters.download;
         return callNative<string>(
           () => RNSSHClient.sftpDownload(remoteFilePath, localFilePath, this._key),
-          (cb) => RNSSHClient.sftpDownload(remoteFilePath, localFilePath, this._key, cb),
           callback
         ).finally(() => { --this._counters.download; });
       });
@@ -633,25 +600,16 @@ export default class SSHClient {
   /**
    * Disconnects the SFTP connection.
    *
-   * @remarks
-   * This method requires a fix in the native part. However, it still works since the native code's `disconnect()` method will actually close the SFTP stream. The only downside is that we can't explicitly close the SFTP channel.
-   *
    * @example
    * ```typescript
    * disconnectSFTP();
    * ```
    */
   disconnectSFTP(): void {
-    // TODO This require a fix in the native part. I don't care.
-    // It actually still work since the native code disconnect() will actually
-    // close the sftp stream.
-    // Only downside is we can't *explicitly* close the sftp channel.
-    if (Platform.OS !== 'ios') {
-      this.unregisterNativeListener(NATIVE_EVENT_DOWNLOAD_PROGRESS);
-      this.unregisterNativeListener(NATIVE_EVENT_UPLOAD_PROGRESS);
-      RNSSHClient.disconnectSFTP(this._key);
-      this._activeStream.sftp = false;
-    }
+    this.unregisterNativeListener(NATIVE_EVENT_DOWNLOAD_PROGRESS);
+    this.unregisterNativeListener(NATIVE_EVENT_UPLOAD_PROGRESS);
+    RNSSHClient.disconnectSFTP(this._key);
+    this._activeStream.sftp = false;
   }
 
   /**
