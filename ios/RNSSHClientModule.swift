@@ -1,6 +1,23 @@
 import ExpoModulesCore
 import RNSSHClientDeps
 
+/// `Exception`'s own `reason` is a computed property hard-coded to "undefined reason" in the
+/// base class - the `Exception(name:description:code:)` convenience initializer sets
+/// `description`, not `reason`, but JS-side error messages read `reason`. So every rejection
+/// via that convenience initializer silently loses its message text. Overriding `reason`
+/// directly is the only way to actually get a message through to JS.
+final class RNSSHClientException: Exception {
+    private let customReason: String
+
+    init(_ reason: String) {
+        self.customReason = reason
+        super.init()
+        self.name = "RNSSHClient"
+    }
+
+    override var reason: String { customReason }
+}
+
 struct KeyPairOrPasswordRecord: Record {
     @Field var privateKey: String = ""
     @Field var publicKey: String? = nil
@@ -31,7 +48,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.connectWithPassword(key: key, host: host, port: port, username: username, password: password)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Connection to host \(host) failed: \(error)")
+                    promise.reject(RNSSHClientException("Connection to host \(host) failed: \(error)"))
                 }
             }
         }
@@ -45,7 +62,7 @@ public class RNSSHClientModule: Module {
                     )
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Connection to host \(host) failed: \(error)")
+                    promise.reject(RNSSHClientException("Connection to host \(host) failed: \(error)"))
                 }
             }
         }
@@ -56,7 +73,7 @@ public class RNSSHClientModule: Module {
                     let response = try await self.pool.execute(key: key, command: command)
                     promise.resolve(response)
                 } catch {
-                    promise.reject("RNSSHClient", "Error executing command: \(error)")
+                    promise.reject(RNSSHClientException("Error executing command: \(error)"))
                 }
             }
         }
@@ -69,7 +86,7 @@ public class RNSSHClientModule: Module {
                     }
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Error starting shell: \(error)")
+                    promise.reject(RNSSHClientException("Error starting shell: \(error)"))
                 }
             }
         }
@@ -80,7 +97,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.writeToShell(key: key, text: str)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Error writing to shell: \(error)")
+                    promise.reject(RNSSHClientException("Error writing to shell: \(error)"))
                 }
             }
         }
@@ -95,7 +112,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.connectSFTP(key: key)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Error connecting SFTP: \(error)")
+                    promise.reject(RNSSHClientException("Error connecting SFTP: \(error)"))
                 }
             }
         }
@@ -110,7 +127,7 @@ public class RNSSHClientModule: Module {
                     let response = try await self.pool.sftpList(key: key, path: path)
                     promise.resolve(response)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to list path \(path): \(error)")
+                    promise.reject(RNSSHClientException("Failed to list path \(path): \(error)"))
                 }
             }
         }
@@ -121,7 +138,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.sftpRename(key: key, oldPath: oldPath, newPath: newPath)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to rename path \(oldPath): \(error)")
+                    promise.reject(RNSSHClientException("Failed to rename path \(oldPath): \(error)"))
                 }
             }
         }
@@ -132,7 +149,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.sftpMkdir(key: key, path: path)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to create directory \(path): \(error)")
+                    promise.reject(RNSSHClientException("Failed to create directory \(path): \(error)"))
                 }
             }
         }
@@ -143,7 +160,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.sftpRm(key: key, path: path)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to remove \(path): \(error)")
+                    promise.reject(RNSSHClientException("Failed to remove \(path): \(error)"))
                 }
             }
         }
@@ -154,7 +171,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.sftpRmdir(key: key, path: path)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to remove \(path): \(error)")
+                    promise.reject(RNSSHClientException("Failed to remove \(path): \(error)"))
                 }
             }
         }
@@ -165,7 +182,7 @@ public class RNSSHClientModule: Module {
                     try await self.pool.sftpChmod(key: key, path: path, permissions: permissions)
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to chmod \(path) with permissions \(permissions): \(error)")
+                    promise.reject(RNSSHClientException("Failed to chmod \(path) with permissions \(permissions): \(error)"))
                 }
             }
         }
@@ -178,7 +195,7 @@ public class RNSSHClientModule: Module {
                     }
                     promise.resolve(localPath)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to download \(filePath): \(error)")
+                    promise.reject(RNSSHClientException("Failed to download \(filePath): \(error)"))
                 }
             }
         }
@@ -191,7 +208,7 @@ public class RNSSHClientModule: Module {
                     }
                     promise.resolve(nil)
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to upload \(filePath): \(error)")
+                    promise.reject(RNSSHClientException("Failed to upload \(filePath): \(error)"))
                 }
             }
         }
@@ -214,7 +231,7 @@ public class RNSSHClientModule: Module {
                     let pair = try await self.pool.generateKeyPair(type: type, passphrase: passphrase, keySize: keySize, comment: comment)
                     promise.resolve(GeneratedKeyPairResult(privateKey: pair.privateKey, publicKey: pair.publicKey))
                 } catch {
-                    promise.reject("RNSSHClient", "Failed to generate key pair: \(error)")
+                    promise.reject(RNSSHClientException("Failed to generate key pair: \(error)"))
                 }
             }
         }
@@ -225,7 +242,7 @@ public class RNSSHClientModule: Module {
                     let details = try self.pool.getKeyDetails(privateKey: privateKey)
                     promise.resolve(KeyDetailsResult(keyType: details.keyType, keySize: details.keySize))
                 } catch {
-                    promise.reject("RNSSHClient", "Error: \(error)")
+                    promise.reject(RNSSHClientException("Error: \(error)"))
                 }
             }
         }
