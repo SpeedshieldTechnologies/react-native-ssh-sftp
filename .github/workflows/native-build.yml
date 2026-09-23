@@ -1,0 +1,183 @@
+# Real native build gates for both platforms.
+#
+# This repo intentionally has no example/host app (see CLAUDE.md), so each job scaffolds a
+# throwaway Expo consumer app, installs this package from a real `npm pack` tarball (not a
+# `file:` link - packing is what caught a real bug where package.json's "files" field was
+# shipping ~1.9GB of build intermediates; a plain file: install would not have), and builds
+# the native project through it. This is the same manual recipe Phase 0-4 validated by hand;
+# this workflow just makes it run on every PR instead of relying on someone remembering to.
+#
+# Runs on every PR (not just ones targeting master) since this repo's migration PRs are stacked
+# on each other rather than on master directly - unlike compile.yml, scoping this to master only
+# would mean it never runs on any of them.
+#
+# Path-filtered to only the things that actually affect native builds - a scratch Expo app build
+# on both platforms is slow, and there's no reason to pay that cost for a docs- or JS-only PR.
+#
+# Non-blocking: continue-on-error means a failure here doesn't fail the PR's overall status check
+# or block merging. This is a young, unproven recipe (first added in #13, never yet observed
+# passing on real GitHub infra) built around scaffolding a throwaway app in CI - real signal, but
+# not signal worth blocking every PR on while it's still shaking out. Each job posts a PR comment
+# on failure instead, so the failure is visible without being a hard gate.
+name: Native build gates
+
+on:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'ios/**'
+      - 'scripts/build-ios-xcframework.sh'
+      - 'RNSSHClient.podspec'
+      - 'expo-module.config.json'
+      - 'package.json'
+      - '.github/workflows/native-build.yml'
+  push:
+    branches: [ master ]
+    paths:
+      - 'android/**'
+      - 'ios/**'
+      - 'scripts/build-ios-xcframework.sh'
+      - 'RNSSHClient.podspec'
+      - 'expo-module.config.json'
+      - 'package.json'
+      - '.github/workflows/native-build.yml'
+
+concurrency:
+  group: native-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install deps and pack this package
+        run: |
+          npm ci
+          npm run build
+          echo "PACKAGE_TARBALL=$(ls speedshield-react-native-ssh-sftp-*.tgz)" >> "$GITHUB_ENV"
+
+      - name: Scaffold a throwaway Expo consumer app
+        run: npx --yes create-expo-app@latest ciconsumer --template blank-typescript
+
+      - name: Install the packed library
+        working-directory: ciconsumer
+        run: npm install "../${{ env.PACKAGE_TARBALL }}"
+
+      - name: Prebuild the Android project
+        working-directory: ciconsumer
+        run: npx expo prebuild -p android
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK (exercises autolinking + our Kotlin module)
+        working-directory: ciconsumer/android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Comment on the PR if this job failed
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ **Native build gates / android** failed on this PR (non-blocking - see the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))."
+
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 45
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Pin Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          # TODO: pin an exact version once one is confirmed working on this runner image -
+          # 'latest-stable' is a placeholder, not a substitute. This matters here specifically:
+          # Phase 0 hit a real, reproducible case of a too-new Xcode (26.2/Swift 6.2.3) outrunning
+          # expo-modules-jsi's C++/Swift interop compatibility on both the latest stable and
+          # preview Expo SDK at the time. Don't remove this TODO by just picking any version that
+          # happens to pass once - confirm it against the Expo SDK version this repo's peer
+          # dependency range actually supports.
+          xcode-version: latest-stable
+
+      - name: Cache Swift Package Manager's global dependency cache
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('ios/XCFrameworkBuild/Package.resolved') }}
+
+      - name: Build the XCFramework (Citadel + its dependency tree, device + simulator slices)
+        run: ./scripts/build-ios-xcframework.sh
+
+      - name: Install deps and pack this package
+        run: |
+          npm ci
+          npm run build
+          echo "PACKAGE_TARBALL=$(ls speedshield-react-native-ssh-sftp-*.tgz)" >> "$GITHUB_ENV"
+
+      - name: Scaffold a throwaway Expo consumer app
+        run: npx --yes create-expo-app@latest ciconsumer --template blank-typescript
+
+      - name: Install the packed library
+        working-directory: ciconsumer
+        run: npm install "../${{ env.PACKAGE_TARBALL }}"
+
+      - name: Prebuild the iOS project
+        working-directory: ciconsumer
+        run: npx expo prebuild -p ios
+
+      - name: pod install
+        working-directory: ciconsumer/ios
+        env:
+          LANG: en_US.UTF-8
+          LC_ALL: en_US.UTF-8
+          # Force everything to compile from source rather than risk a precompiled-binary/Xcode
+          # version mismatch against whatever 'latest-stable' resolves to above - see Phase 0's
+          # note on this in the Xcode-pinning step.
+          EXPO_USE_PRECOMPILED_MODULES: '0'
+        run: pod install
+
+      - name: Build for Simulator (link-test against the podspec's vendored_frameworks)
+        working-directory: ciconsumer/ios
+        run: |
+          xcodebuild build \
+            -workspace ciconsumer.xcworkspace \
+            -scheme ciconsumer \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Comment on the PR if this job failed
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ **Native build gates / ios** failed on this PR (non-blocking - see the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))."

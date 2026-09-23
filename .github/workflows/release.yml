@@ -16,6 +16,14 @@
 # Prerequisite (one-time, on npmjs.com): configure a Trusted Publisher for
 # @speedshield/react-native-ssh-sftp pointing at this exact workflow file
 # (SpeedshieldTechnologies/react-native-ssh-sftp, workflow: release.yml).
+#
+# A manual "Run workflow" dispatch instead publishes a snapshot release (Changesets' snapshot
+# mode: https://github.com/changesets/changesets/blob/main/docs/snapshot-releases.md) under a
+# throwaway npm dist-tag, for testing a branch before it's ready for a real versioned release.
+# This lives in the same file as the regular release flow, rather than a separate workflow,
+# specifically so it stays covered by the Trusted Publisher registration above - npm's OIDC
+# trust is bound to this exact workflow path, and a second file would need its own registration.
+# It never commits a version bump anywhere (snapshot versions are throwaway by design).
 
 name: Release
 
@@ -23,6 +31,12 @@ on:
   push:
     branches:
       - master
+  workflow_dispatch:
+    inputs:
+      snapshot-tag:
+        description: 'npm dist-tag to publish a snapshot release under (e.g. "next", a branch name)'
+        required: true
+        default: 'next'
 
 # recommended: reset permissions and explicitly specify for each job
 permissions: {}
@@ -33,6 +47,7 @@ concurrency:
 
 jobs:
   select-mode:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       mode: ${{ steps.select-mode.outputs.mode }}
@@ -145,3 +160,34 @@ jobs:
         with:
           pack-dir-artifact-id: ${{ needs.pack.outputs.pack-dir-artifact-id }}
           create-github-releases: true
+
+  snapshot:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: production # same OIDC-gated approval as a real publish - this is still a real npm publish
+    permissions:
+      contents: read # to check out repo (actions/checkout)
+      id-token: write # for trusted publishing
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false # recommended: avoid cache poisoning
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile
+        run: npm run compile
+
+      - name: Version as a snapshot (never committed - see changesets/changesets snapshot docs)
+        run: npx changeset version --snapshot "${{ inputs.snapshot-tag }}"
+
+      - name: Publish snapshot
+        run: npx changeset publish --tag "${{ inputs.snapshot-tag }}"
