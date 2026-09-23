@@ -71,7 +71,8 @@
   },
   "files": [
     "android/",
-    "ios/",
+    "ios/RNSSHClientDeps.xcframework/",
+    "ios/RNSSHClientModule.swift",
     "lib/",
     "RNSSHClient.podspec",
     "expo-module.config.json"
