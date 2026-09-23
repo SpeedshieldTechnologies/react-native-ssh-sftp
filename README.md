@@ -52,7 +52,7 @@ This library autolinks via the [Expo Modules API](https://docs.expo.dev/modules/
 All functions that run asynchronously where we have to wait for a result returns Promises that can reject if an error occurred.
 
 > [!NOTE]
-> On iOS, this package has historically not worked in the Simulator (see [this issue](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/issues/20) for background) - you'd need a physical device. This hasn't been re-verified since the iOS side was rewritten on top of Citadel, so treat Simulator support as unconfirmed either way and prefer testing on a physical device.
+> On the old NMSSH-based iOS implementation, the Simulator only worked with the **x86_64** (Intel/Rosetta) Simulator, not the native **arm64** Simulator on Apple Silicon Macs - NMSSH didn't ship a universal Simulator slice, so you'd need to explicitly select or force an x86_64 Simulator target (see [this issue](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/issues/20) for background). The Citadel-based rewrite's XCFramework does ship a genuine universal Simulator slice (`arm64` + `x86_64`, verified in its `Info.plist`), so this specific limitation shouldn't apply anymore - but that's link-level evidence, not a full functional test, so a physical device is still the safer choice until someone confirms a real SSH connection end-to-end on the Simulator.
 
 ### Create a client using password authentication
 
