@@ -389,7 +389,9 @@ public actor RNSSHClientPool {
 
     /// Only Ed25519 is currently supported: Citadel's public API doesn't expose an
     /// OpenSSH-format export for generated RSA/ECDSA keys (only for parsing existing ones).
-    public func generateKeyPair(type: String, passphrase: String?, comment: String) throws -> RNSSHKeyPair {
+    /// `keySize` is accepted (matching the cross-platform call signature) but unused - Ed25519
+    /// keys are a fixed 256 bits, there's nothing to size.
+    public func generateKeyPair(type: String, passphrase: String?, keySize: Int, comment: String) throws -> RNSSHKeyPair {
         guard type.lowercased() == "ed25519" else {
             throw RNSSHClientDepsError.unsupportedKeyGenerationType(type)
         }
