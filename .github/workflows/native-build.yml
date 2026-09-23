@@ -13,6 +13,12 @@
 #
 # Path-filtered to only the things that actually affect native builds - a scratch Expo app build
 # on both platforms is slow, and there's no reason to pay that cost for a docs- or JS-only PR.
+#
+# Non-blocking: continue-on-error means a failure here doesn't fail the PR's overall status check
+# or block merging. This is a young, unproven recipe (first added in #13, never yet observed
+# passing on real GitHub infra) built around scaffolding a throwaway app in CI - real signal, but
+# not signal worth blocking every PR on while it's still shaking out. Each job posts a PR comment
+# on failure instead, so the failure is visible without being a hard gate.
 name: Native build gates
 
 on:
@@ -44,6 +50,10 @@ jobs:
   android:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
 
@@ -80,9 +90,22 @@ jobs:
         working-directory: ciconsumer/android
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Comment on the PR if this job failed
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ **Native build gates / android** failed on this PR (non-blocking - see the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))."
+
   ios:
     runs-on: macos-15
     timeout-minutes: 45
+    continue-on-error: true
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v7
 
@@ -149,3 +172,12 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Comment on the PR if this job failed
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" \
+            --body "⚠️ **Native build gates / ios** failed on this PR (non-blocking - see the [workflow run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}))."
