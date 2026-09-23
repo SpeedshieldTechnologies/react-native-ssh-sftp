@@ -6,6 +6,12 @@
 /lib
 /speedshield-react-native-ssh-sftp*.tgz
 
+# Built at publish time (see scripts/build-ios-xcframework.sh), shipped in the npm tarball,
+# not committed - same pattern as /lib above.
+/ios/RNSSHClientDeps.xcframework
+/ios/XCFrameworkBuild/.build
+/ios/XCFrameworkBuild/.swiftpm
+
 # Xcode
 build/
 *.pbxuser
