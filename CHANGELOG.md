@@ -1,5 +1,11 @@
 # @speedshield/react-native-ssh-sftp
 
+## 3.0.1
+
+### Patch Changes
+
+- [#16](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/pull/16) [`740e821`](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/commit/740e82136010e2ae364cb951da523697f57858ba) Thanks [@longphung](https://github.com/longphung)! - Fixed the iOS build failing with `No such module 'RNSSHClientDeps'`: 3.0.0 was published without `ios/RNSSHClientDeps.xcframework`, because the release job ran on Linux and never built it. Releases now build the XCFramework on macOS and fail if it's missing from the packed tarball.
+
 ## 3.0.0
 
 ### Major Changes
