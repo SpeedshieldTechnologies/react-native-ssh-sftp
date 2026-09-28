@@ -22,7 +22,7 @@ npm run build                       # compile + npm pack
 ./scripts/build-ios-xcframework.sh  # builds ios/RNSSHClientDeps.xcframework from ios/XCFrameworkBuild (needs a Mac + Xcode; run before `npm run build` if the iOS side changed)
 ```
 
-There is no test suite. There is no single-test command. `.github/workflows/native-build.yml` is the real correctness gate for native code — it scaffolds a throwaway Expo consumer app, installs this package from an actual `npm pack` tarball (not a `file:` link — packing is what catches "files" field packaging bugs a `file:` install wouldn't), and builds the native project through it, for both platforms, on every PR.
+There is no test suite and no native CI build. Verify native changes by hand in a consumer app installed from an actual `npm pack` tarball, not a `file:` link — a `file:` install hides "files" field packaging bugs (e.g. 3.0.0 shipping without `ios/RNSSHClientDeps.xcframework`). The release workflow's pack step does fail if the XCFramework is missing from the tarball.
 
 To work on the native Android/iOS code directly, you need a consumer React Native app with this package linked — this repo does not contain an example/host app itself (see README's link to a separate example app repo). A reference test app used during the Expo Modules migration is at [longphung/rnssh-test-app](https://github.com/longphung/rnssh-test-app).
 
