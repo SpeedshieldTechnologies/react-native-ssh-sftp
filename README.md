@@ -1,6 +1,6 @@
 # SSH and SFTP client library for React Native
 
-SSH and SFTP client library for React Native on iOS and Android.
+SSH and SFTP client library for React Native on iOS and Android, rewritten to support iOS arm64 and uses new SwiftNIO interface for better targeting of network interfaces
 
 [![Compile package](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/compile.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/compile.yml) [![Release](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/release.yml/badge.svg)](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/actions/workflows/release.yml)
 
