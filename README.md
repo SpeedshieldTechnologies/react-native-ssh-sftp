@@ -36,6 +36,14 @@ cd -
 > [!NOTE]
 > This library requires **iOS 18.0 or later**, needed for the Swift concurrency APIs ([SE-0417](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)) that the Citadel-based connection handling relies on. **tvOS is not supported.**
 
+#### Why Citadel instead of NMSSH
+
+Earlier versions of this library used [NMSSH](https://github.com/NMSSH/NMSSH), an Objective-C wrapper around libssh2, on iOS. NMSSH opens its connections with legacy BSD socket APIs, which bypass Network.framework's interface/path selection. So when a device had **both Wi-Fi and mobile data turned on** and the app tried to SSH into a host on the local Wi-Fi network, iOS didn't route the connection over Wi-Fi, and it failed until the user turned mobile data off.
+
+The iOS side is now built on Citadel, running on SwiftNIO's `NIOTSEventLoopGroup` (backed by Network.framework). Local-network connections now go over Wi-Fi even while mobile data is on, and connections also survive a Wi-Fi/cellular handover.
+
+NMSSH also looks unmaintained. Apple Silicon (arm64) support was never merged ([NMSSH#288](https://github.com/NMSSH/NMSSH/pull/288)), and many other issues are still open ([NMSSH#302](https://github.com/NMSSH/NMSSH/issues/302)).
+
 ### Android
 
 No additional steps are needed for Android.
@@ -52,7 +60,7 @@ This library autolinks via the [Expo Modules API](https://docs.expo.dev/modules/
 All functions that run asynchronously where we have to wait for a result returns Promises that can reject if an error occurred.
 
 > [!NOTE]
-> On the old NMSSH-based iOS implementation, the Simulator only worked with the **x86_64** (Intel/Rosetta) Simulator, not the native **arm64** Simulator on Apple Silicon Macs - NMSSH didn't ship a universal Simulator slice, so you'd need to explicitly select or force an x86_64 Simulator target (see [this issue](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/issues/20) for background). The Citadel-based rewrite's XCFramework does ship a genuine universal Simulator slice (`arm64` + `x86_64`, verified in its `Info.plist`), so this specific limitation shouldn't apply anymore - but that's link-level evidence, not a full functional test, so a physical device is still the safer choice until someone confirms a real SSH connection end-to-end on the Simulator.
+> On the old NMSSH-based iOS implementation, the Simulator only worked with the **x86_64** (Intel/Rosetta) Simulator, not the native **arm64** Simulator on Apple Silicon Macs - NMSSH didn't ship a universal Simulator slice, so you'd need to explicitly select or force an x86_64 Simulator target (arm64 support was proposed upstream in [NMSSH#288](https://github.com/NMSSH/NMSSH/pull/288) but never merged; see also [NMSSH#302](https://github.com/NMSSH/NMSSH/issues/302)). The Citadel-based rewrite's XCFramework does ship a genuine universal Simulator slice (`arm64` + `x86_64`, verified in its `Info.plist`), so this specific limitation shouldn't apply anymore - but that's link-level evidence, not a full functional test, so a physical device is still the safer choice until someone confirms a real SSH connection end-to-end on the Simulator.
 
 ### Create a client using password authentication
 
