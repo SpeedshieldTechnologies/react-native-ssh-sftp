@@ -178,7 +178,17 @@ public actor RNSSHClientPool {
             // Citadel's default offer. `.all` adds those back (diffie-hellman-group14-sha1/sha256,
             // ssh-rsa host keys) without dropping the modern ones already offered by default.
             settings.algorithms = .all
-            return try await SSHClient.connect(on: channel, settings: settings)
+            do {
+                return try await SSHClient.connect(on: channel, settings: settings)
+            } catch {
+                // Citadel leaves the TCP connection open when the handshake or login fails (its own
+                // 10s login timeout included), and nothing is stored under `key` yet, so disconnect()
+                // can't reach it. The server keeps each one as an unauthenticated session until its
+                // auth timeout (dropbear: 5 per client IP, 300s), so a few failed tries make it drop
+                // every later login from this device while other devices still get in.
+                channel.close(promise: nil)
+                throw error
+            }
         }
         let state = ClientState()
         state.client = client
