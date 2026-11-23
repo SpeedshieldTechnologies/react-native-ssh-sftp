@@ -36,6 +36,8 @@ cd -
 > [!NOTE]
 > This library requires **iOS 18.0 or later**, needed for the Swift concurrency APIs ([SE-0417](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0417-task-executor-preference.md)) that the Citadel-based connection handling relies on. **tvOS is not supported.**
 
+The XCFramework is built from our fork, [SpeedshieldTechnologies/Citadel](https://github.com/SpeedshieldTechnologies/Citadel) (`0.12.1-speedshield.1`): upstream 0.12.1 plus a configurable login timeout, which upstream fixes at 10 s.
+
 #### Why Citadel instead of NMSSH
 
 Earlier versions of this library used [NMSSH](https://github.com/NMSSH/NMSSH), an Objective-C wrapper around libssh2, on iOS. NMSSH opens its connections with legacy BSD socket APIs, which bypass Network.framework's interface/path selection. So when a device had **both Wi-Fi and mobile data turned on** and the app tried to SSH into a host on the local Wi-Fi network, iOS didn't route the connection over Wi-Fi, and it failed until the user turned mobile data off.
@@ -96,6 +98,20 @@ SSHClient.connectWithKey(
 {privateKey: '-----BEGIN RSA......', publicKey: 'ssh-rsa AAAAB3NzaC1yc2EA......'}
 {privateKey: '-----BEGIN RSA......', publicKey: 'ssh-rsa AAAAB3NzaC1yc2EA......', passphrase: 'Password'}
 ```
+
+### Login timeout
+
+Both connect functions take an optional last argument, `{ loginTimeoutMs }`: how long the SSH handshake and login may take once the TCP connection is open. Raise it for servers that are slow to send their version line, such as dropbear doing a reverse DNS lookup of the client against a nameserver that doesn't answer (about 10 s).
+
+```javascript
+SSHClient.connectWithPassword("10.0.0.10", 22, "user", "password", undefined, { loginTimeoutMs: 30000 })
+  .then(client => {/*...*/});
+```
+
+- **iOS:** covers the whole handshake and login. Default 10 s.
+- **Android:** JSch applies it to the TCP connect and to each read during the handshake. Default none.
+
+If the handshake or login fails, the connection is closed before the promise rejects.
 
 ### Close client
 

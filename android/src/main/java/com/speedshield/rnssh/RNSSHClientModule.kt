@@ -91,12 +91,12 @@ class RNSSHClientModule : Module() {
 
     Events("Shell", "DownloadProgress", "UploadProgress")
 
-    AsyncFunction("connectToHostByPassword") { host: String, port: Int, username: String, password: String, key: String, promise: Promise ->
-      connectToHost(host, port, username, password, null, key, promise)
+    AsyncFunction("connectToHostByPassword") { host: String, port: Int, username: String, password: String, key: String, loginTimeoutMs: Int?, promise: Promise ->
+      connectToHost(host, port, username, password, null, key, loginTimeoutMs, promise)
     }
 
-    AsyncFunction("connectToHostByKey") { host: String, port: Int, username: String, passwordOrKey: KeyPairOrPasswordRecord, key: String, promise: Promise ->
-      connectToHost(host, port, username, null, passwordOrKey, key, promise)
+    AsyncFunction("connectToHostByKey") { host: String, port: Int, username: String, passwordOrKey: KeyPairOrPasswordRecord, key: String, loginTimeoutMs: Int?, promise: Promise ->
+      connectToHost(host, port, username, null, passwordOrKey, key, loginTimeoutMs, promise)
     }
 
     AsyncFunction("execute") { command: String, key: String, promise: Promise ->
@@ -414,6 +414,7 @@ class RNSSHClientModule : Module() {
     password: String?,
     passwordOrKey: KeyPairOrPasswordRecord?,
     key: String,
+    loginTimeoutMs: Int?,
     promise: Promise
   ) {
     Thread {
@@ -435,7 +436,8 @@ class RNSSHClientModule : Module() {
         session.setConfig(
           Properties().apply { setProperty("StrictHostKeyChecking", "no") }
         )
-        session.connect()
+        // JSch applies this to the TCP connect and to each read during the handshake, then clears the read timeout.
+        session.connect(loginTimeoutMs ?: 0)
 
         if (session.isConnected) {
           clientPool[key] = SSHClient().apply { this.session = session }

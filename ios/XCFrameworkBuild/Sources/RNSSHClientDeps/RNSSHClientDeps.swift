@@ -115,13 +115,18 @@ public actor RNSSHClientPool {
 
     // MARK: - Connect
 
-    public func connectWithPassword(key: String, host: String, port: Int, username: String, password: String) async throws {
-        try await connect(key: key, host: host, port: port, authMethod: .passwordBased(username: username, password: password))
+    public func connectWithPassword(key: String, host: String, port: Int, username: String, password: String, loginTimeoutMs: Int? = nil) async throws {
+        try await connect(
+            key: key, host: host, port: port,
+            authMethod: .passwordBased(username: username, password: password), loginTimeoutMs: loginTimeoutMs
+        )
     }
 
-    public func connectWithKey(key: String, host: String, port: Int, username: String, privateKey: String, passphrase: String?) async throws {
+    public func connectWithKey(
+        key: String, host: String, port: Int, username: String, privateKey: String, passphrase: String?, loginTimeoutMs: Int? = nil
+    ) async throws {
         let authMethod = try Self.authMethod(username: username, privateKey: privateKey, passphrase: passphrase)
-        try await connect(key: key, host: host, port: port, authMethod: authMethod)
+        try await connect(key: key, host: host, port: port, authMethod: authMethod, loginTimeoutMs: loginTimeoutMs)
     }
 
     // Citadel's own `SSHClient.connect(to: SSHClientSettings)` internally builds a plain
@@ -155,10 +160,10 @@ public actor RNSSHClientPool {
     // fail with exactly `channelCreationFailed` after ~15s when using the old overload, on both
     // NIOTSEventLoopGroup and a plain MultiThreadedEventLoopGroup equally (confirming this was
     // never NIOTS-specific) - and switching to the `settings:` overload below made `connect()`
-    // itself correctly absorb that latency (or time out clearly, e.g. the 30s login
+    // itself correctly absorb that latency (or time out clearly, e.g. the login
     // timeout set below, if the handshake genuinely can't complete), after which `execute()` succeeds
     // immediately since auth is already done.
-    private func connect(key: String, host: String, port: Int, authMethod: SSHAuthenticationMethod) async throws {
+    private func connect(key: String, host: String, port: Int, authMethod: SSHAuthenticationMethod, loginTimeoutMs: Int?) async throws {
         let channel = try await NIOTSConnectionBootstrap(group: eventLoopGroup)
             .connectTimeout(.seconds(30))
             .connect(host: host, port: port)
@@ -178,9 +183,11 @@ public actor RNSSHClientPool {
             // Citadel's default offer. `.all` adds those back (diffie-hellman-group14-sha1/sha256,
             // ssh-rsa host keys) without dropping the modern ones already offered by default.
             settings.algorithms = .all
-            // Citadel's default is 10 s from here to logged in. Dropbear on an AiVA camera whose nameserver doesn't
-            // answer spends 10 s on reverse DNS lookups before sending its version line, so 10 s always failed.
-            settings.loginTimeout = .seconds(30)
+            // Time from here to logged in; Citadel's default is 10 s. Our Citadel fork adds this setting: upstream fixes
+            // it at 10 s, too short for a server that spends seconds on a reverse DNS lookup before its version line.
+            if let loginTimeoutMs {
+                settings.loginTimeout = .milliseconds(Int64(loginTimeoutMs))
+            }
             do {
                 return try await SSHClient.connect(on: channel, settings: settings)
             } catch {
