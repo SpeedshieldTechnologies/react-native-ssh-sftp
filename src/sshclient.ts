@@ -105,6 +105,19 @@ export interface keyDetail {
 export type PasswordOrKey = string | KeyPair;
 
 /**
+ * Options for `connectWithPassword` and `connectWithKey`.
+ */
+export interface ConnectOptions {
+  /**
+   * Milliseconds allowed for the SSH handshake and login once the TCP connection is open. Some servers wait seconds
+   * (a reverse DNS lookup of the client, for example) before sending their version line.
+   * iOS: the whole handshake and login, default 10 s. Android: the TCP connect and each read during the handshake,
+   * default none.
+   */
+  loginTimeoutMs?: number;
+}
+
+/**
  * Represents an SSH client that can connect to a remote server and perform various operations.
  * Instances of SSHClient are created using the following factory functions:
  * - SSHClient.connectWithKey()
@@ -156,11 +169,12 @@ export default class SSHClient {
    * @param privateKey - The private key for authentication.
    * @param passphrase - The passphrase for the private key (optional).
    * @param callback - A callback function to handle the connection result (optional).
+   * @param options - Connection options, such as `loginTimeoutMs` (optional).
    *
    * @returns A Promise that resolves to an instance of SSHClient if the connection is successful.
    *          Otherwise, it rejects with an error.
    */
-  static connectWithKey(host: string, port: number, username: string, privateKey: string, passphrase?: string, callback?: CallbackFunction<SSHClient>): Promise<SSHClient> {
+  static connectWithKey(host: string, port: number, username: string, privateKey: string, passphrase?: string, callback?: CallbackFunction<SSHClient>, options?: ConnectOptions): Promise<SSHClient> {
     return new Promise((resolve, reject) => {
       const result = new SSHClient(host, port, username, { privateKey, passphrase }, (error: CBError) => {
         if (callback) {
@@ -172,8 +186,7 @@ export default class SSHClient {
         }
 
         resolve(result);
-      }
-      );
+      }, options);
     });
   }
 
@@ -185,10 +198,11 @@ export default class SSHClient {
    * @param username - The username for authentication.
    * @param password - The password for authentication.
    * @param callback - Optional callback function to handle any errors during the connection process.
+   * @param options - Connection options, such as `loginTimeoutMs` (optional).
    * @returns A Promise that resolves to an instance of SSHClient if the connection is successful.
    * @throws If there is an error during the connection process.
    */
-  static connectWithPassword(host: string, port: number, username: string, password: string, callback?: CallbackFunction<SSHClient>): Promise<SSHClient> {
+  static connectWithPassword(host: string, port: number, username: string, password: string, callback?: CallbackFunction<SSHClient>, options?: ConnectOptions): Promise<SSHClient> {
     return new Promise((resolve, reject) => {
       const result = new SSHClient(host, port, username, password, (error: CBError) => {
         if (callback) {
@@ -200,7 +214,7 @@ export default class SSHClient {
         }
 
         resolve(result);
-      });
+      }, options);
     });
   }
 
@@ -222,8 +236,9 @@ export default class SSHClient {
    * @param username The username for authentication.
    * @param passwordOrKey The password or private key for authentication.
    * @param callback The callback function to be called after the connection is established.
+   * @param options Connection options, such as `loginTimeoutMs`.
    */
-  constructor(host: string, port: number, username: string, passwordOrKey: PasswordOrKey, callback: CallbackFunction<void>) {
+  constructor(host: string, port: number, username: string, passwordOrKey: PasswordOrKey, callback: CallbackFunction<void>, options?: ConnectOptions) {
     this._key = SSHClient.getRandomClientKey();
     this._listeners = {};
     this._counters = {
@@ -238,7 +253,7 @@ export default class SSHClient {
     this.host = host;
     this.port = port;
     this.username = username;
-    this.connect(passwordOrKey, callback);
+    this.connect(passwordOrKey, options?.loginTimeoutMs ?? null, callback);
   }
 
   /**
@@ -300,12 +315,13 @@ export default class SSHClient {
    * Connects to the SSH server using the provided password or key.
    *
    * @param passwordOrKey - The password or key to authenticate with the server.
+   * @param loginTimeoutMs - Handshake and login timeout in milliseconds, or null for the platform default.
    * @param callback - The callback function to be called after the connection attempt.
    */
-  private connect(passwordOrKey: PasswordOrKey, callback: CallbackFunction<void>): void {
+  private connect(passwordOrKey: PasswordOrKey, loginTimeoutMs: number | null, callback: CallbackFunction<void>): void {
     const connectPromise = typeof passwordOrKey === 'string'
-      ? RNSSHClient.connectToHostByPassword(this.host, this.port, this.username, passwordOrKey, this._key)
-      : RNSSHClient.connectToHostByKey(this.host, this.port, this.username, passwordOrKey, this._key);
+      ? RNSSHClient.connectToHostByPassword(this.host, this.port, this.username, passwordOrKey, this._key, loginTimeoutMs)
+      : RNSSHClient.connectToHostByKey(this.host, this.port, this.username, passwordOrKey, this._key, loginTimeoutMs);
 
     connectPromise
       .then(() => callback(null))

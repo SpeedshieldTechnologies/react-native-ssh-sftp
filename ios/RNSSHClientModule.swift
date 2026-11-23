@@ -42,10 +42,12 @@ public class RNSSHClientModule: Module {
 
         Events("Shell", "DownloadProgress", "UploadProgress")
 
-        AsyncFunction("connectToHostByPassword") { (host: String, port: Int, username: String, password: String, key: String, promise: Promise) in
+        AsyncFunction("connectToHostByPassword") { (host: String, port: Int, username: String, password: String, key: String, loginTimeoutMs: Int?, promise: Promise) in
             Task {
                 do {
-                    try await self.pool.connectWithPassword(key: key, host: host, port: port, username: username, password: password)
+                    try await self.pool.connectWithPassword(
+                        key: key, host: host, port: port, username: username, password: password, loginTimeoutMs: loginTimeoutMs
+                    )
                     promise.resolve(nil)
                 } catch {
                     promise.reject(RNSSHClientException("Connection to host \(host) failed: \(error)"))
@@ -53,12 +55,12 @@ public class RNSSHClientModule: Module {
             }
         }
 
-        AsyncFunction("connectToHostByKey") { (host: String, port: Int, username: String, passwordOrKey: KeyPairOrPasswordRecord, key: String, promise: Promise) in
+        AsyncFunction("connectToHostByKey") { (host: String, port: Int, username: String, passwordOrKey: KeyPairOrPasswordRecord, key: String, loginTimeoutMs: Int?, promise: Promise) in
             Task {
                 do {
                     try await self.pool.connectWithKey(
                         key: key, host: host, port: port, username: username,
-                        privateKey: passwordOrKey.privateKey, passphrase: passwordOrKey.passphrase
+                        privateKey: passwordOrKey.privateKey, passphrase: passwordOrKey.passphrase, loginTimeoutMs: loginTimeoutMs
                     )
                     promise.resolve(nil)
                 } catch {
