@@ -155,8 +155,8 @@ public actor RNSSHClientPool {
     // fail with exactly `channelCreationFailed` after ~15s when using the old overload, on both
     // NIOTSEventLoopGroup and a plain MultiThreadedEventLoopGroup equally (confirming this was
     // never NIOTS-specific) - and switching to the `settings:` overload below made `connect()`
-    // itself correctly absorb that latency (or time out clearly, e.g. Citadel's own 10s login
-    // timeout, if the handshake genuinely can't complete), after which `execute()` succeeds
+    // itself correctly absorb that latency (or time out clearly, e.g. the 30s login
+    // timeout set below, if the handshake genuinely can't complete), after which `execute()` succeeds
     // immediately since auth is already done.
     private func connect(key: String, host: String, port: Int, authMethod: SSHAuthenticationMethod) async throws {
         let channel = try await NIOTSConnectionBootstrap(group: eventLoopGroup)
@@ -178,11 +178,14 @@ public actor RNSSHClientPool {
             // Citadel's default offer. `.all` adds those back (diffie-hellman-group14-sha1/sha256,
             // ssh-rsa host keys) without dropping the modern ones already offered by default.
             settings.algorithms = .all
+            // Citadel's default is 10 s from here to logged in. Dropbear on an AiVA camera whose nameserver doesn't
+            // answer spends 10 s on reverse DNS lookups before sending its version line, so 10 s always failed.
+            settings.loginTimeout = .seconds(30)
             do {
                 return try await SSHClient.connect(on: channel, settings: settings)
             } catch {
-                // Citadel leaves the TCP connection open when the handshake or login fails (its own
-                // 10s login timeout included), and nothing is stored under `key` yet, so disconnect()
+                // Citadel leaves the TCP connection open when the handshake or login fails (the login
+                // timeout included), and nothing is stored under `key` yet, so disconnect()
                 // can't reach it. The server keeps each one as an unauthenticated session until its
                 // auth timeout (dropbear: 5 per client IP, 300s), so a few failed tries make it drop
                 // every later login from this device while other devices still get in.
