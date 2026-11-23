@@ -1,5 +1,15 @@
 # @speedshield/react-native-ssh-sftp
 
+## 3.1.0
+
+### Minor Changes
+
+- [#21](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/pull/21) [`8edd322`](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/commit/8edd32255fc290260ea95401692ec979b418e6a8) Thanks [@longphung](https://github.com/longphung)! - Add an optional `{ loginTimeoutMs }` last argument to `connectWithPassword` and `connectWithKey`. On iOS it limits the whole SSH handshake and login (default stays 10 s), through our Citadel fork (`SpeedshieldTechnologies/Citadel` 0.12.1-speedshield.1, which adds `SSHClientSettings.loginTimeout`). On Android it is passed to JSch's `Session.connect(timeout)` (default stays none). A dropbear server whose nameserver doesn't answer spends about 10 s on reverse DNS lookups before its version line, so every iOS login to it failed with "Connect timeout (10 s)" until the timeout could be raised.
+
+### Patch Changes
+
+- [#21](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/pull/21) [`8edd322`](https://github.com/SpeedshieldTechnologies/react-native-ssh-sftp/commit/8edd32255fc290260ea95401692ec979b418e6a8) Thanks [@longphung](https://github.com/longphung)! - iOS: close the TCP connection when the SSH handshake or login fails. Citadel left it open, so each failed connect held an unauthenticated session on the server until its auth timeout, and after a few failures the server dropped every new login from that device ("Connect timeout (10 s)").
+
 ## 3.0.1
 
 ### Patch Changes
